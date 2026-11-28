@@ -49,6 +49,11 @@ p{margin:0}
 .btn.b{background:var(--blue);color:#fff}
 .btn.b:hover{filter:brightness(1.1)}
 .btn.o{border-color:var(--line);background:var(--paper)}
+.vctl{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px}
+.vb{font-family:var(--f-body);font-size:1rem;font-weight:700;border-radius:12px;padding:10px 18px;border:2px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer;min-width:96px}
+.vb:hover{border-color:var(--blue)}
+.vb.main{background:var(--blue);border-color:var(--blue);color:#fff}
+.vb.on{background:var(--green-2);border-color:var(--green);color:#137a48}
 .btn.o:hover{border-color:var(--blue)}
 .addr{margin-top:14px;font-size:.92rem;color:var(--sub)}
 .addr b{font-family:var(--f-display);font-weight:400;font-size:1.1rem;color:var(--blue);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:1px 10px;margin-right:4px}
@@ -181,7 +186,12 @@ footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
     </div>
     <div class="player">
       <span class="tag">▶ 학생 화면 2분</span>
-      <video src="video/student.mp4" poster="img/poster-student.jpg" controls preload="metadata" playsinline></video>
+      <video id="stuVideo" src="video/student.mp4" poster="img/poster-student.jpg" controls preload="metadata" playsinline loop></video>
+      <div class="vctl" role="group" aria-label="학생 화면 영상 조절">
+        <button type="button" id="vPlay" class="vb main" aria-label="재생">▶ 재생</button>
+        <button type="button" id="vStart" class="vb" aria-label="처음부터">⏮ 처음</button>
+        <button type="button" id="vLoop" class="vb on" aria-pressed="true" aria-label="반복">🔁 반복 켜짐</button>
+      </div>
     </div>
   </div>
 </section>
@@ -340,6 +350,26 @@ document.querySelectorAll('.bars').forEach(function(b){
     function sel(){ var r = document.createRange(); r.selectNodeContents(document.getElementById('url')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = 'Ctrl+C로 복사'; }
     if (navigator.clipboard) navigator.clipboard.writeText(url).then(function(){ b.textContent = '복사했어요'; setTimeout(function(){ b.textContent = '주소 복사'; }, 1600); }, sel); else sel();
   });
+})();
+</script>
+<script>
+// 학생 화면 영상: 재생/멈춤 · 처음부터 · 반복 켜기/끄기
+(() => {
+  const v = document.getElementById('stuVideo');
+  const play = document.getElementById('vPlay'), start = document.getElementById('vStart'), loop = document.getElementById('vLoop');
+  const sync = () => {
+    const on = !v.paused && !v.ended;
+    play.textContent = on ? '⏸ 멈춤' : '▶ 재생';
+    play.setAttribute('aria-label', on ? '멈춤' : '재생');
+    loop.textContent = v.loop ? '🔁 반복 켜짐' : '🔁 반복 꺼짐';
+    loop.classList.toggle('on', v.loop);
+    loop.setAttribute('aria-pressed', String(v.loop));
+  };
+  play.addEventListener('click', () => (v.paused || v.ended ? v.play() : v.pause()));
+  start.addEventListener('click', () => { v.currentTime = 0; v.play(); });
+  loop.addEventListener('click', () => { v.loop = !v.loop; sync(); });
+  ['play', 'pause', 'ended'].forEach((e) => v.addEventListener(e, sync));
+  sync();
 })();
 </script>
 </body></html>
