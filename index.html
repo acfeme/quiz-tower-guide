@@ -49,11 +49,25 @@ p{margin:0}
 .btn.b{background:var(--blue);color:#fff}
 .btn.b:hover{filter:brightness(1.1)}
 .btn.o{border-color:var(--line);background:var(--paper)}
-.vctl{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px}
-.vb{font-family:var(--f-body);font-size:1rem;font-weight:700;border-radius:12px;padding:10px 18px;border:2px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer;min-width:96px}
-.vb:hover{border-color:var(--blue)}
-.vb.main{background:var(--blue);border-color:var(--blue);color:#fff}
-.vb.on{background:var(--green-2);border-color:var(--green);color:#137a48}
+.vbox{position:relative;border-radius:16px;overflow:hidden;background:#000;box-shadow:var(--shadow);border:6px solid var(--paper)}
+.player .vbox video{border:0;border-radius:0;box-shadow:none;width:100%;display:block;cursor:pointer}
+.vbig{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);width:84px;height:84px;border-radius:50%;border:0;background:rgba(47,95,208,.92);color:#fff;font-size:34px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.vbox.playing .vbig{display:none}
+.vbar{position:absolute;left:0;right:0;bottom:0;padding:26px 10px 8px;background:linear-gradient(transparent,rgba(0,0,0,.75));display:grid;gap:6px;transition:opacity .3s}
+.vbox.playing.idle .vbar{opacity:0}
+.vbox.playing.idle{cursor:none}
+.vrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.vgrow{flex:1}
+.vb{font-family:var(--f-body);font-size:.92rem;font-weight:700;border-radius:10px;padding:7px 12px;border:0;background:rgba(255,255,255,.16);color:#fff;cursor:pointer;white-space:nowrap}
+.vb:hover{background:rgba(255,255,255,.3)}
+.vb.on{background:var(--green);color:#fff}
+.vb.icon{padding:7px 10px}
+.vtime{color:#fff;font-size:.85rem;font-variant-numeric:tabular-nums;opacity:.9;margin-left:4px}
+#vSeek{width:100%;accent-color:var(--yellow);height:18px;margin:0;cursor:pointer}
+.vbox:fullscreen,.vbox.pseudo{border:0;border-radius:0;display:flex;align-items:center;justify-content:center}
+.vbox:fullscreen video,.vbox.pseudo video{width:100%;height:100%;object-fit:contain}
+.vbox.pseudo{position:fixed;inset:0;z-index:9999}
+@media (max-width:520px){.vb{font-size:.8rem;padding:6px 9px}.vtime{display:none}}
 .btn.o:hover{border-color:var(--blue)}
 .addr{margin-top:14px;font-size:.92rem;color:var(--sub)}
 .addr b{font-family:var(--f-display);font-weight:400;font-size:1.1rem;color:var(--blue);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:1px 10px;margin-right:4px}
@@ -186,11 +200,21 @@ footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
     </div>
     <div class="player">
       <span class="tag">▶ 학생 화면 2분</span>
-      <video id="stuVideo" src="video/student.mp4" poster="img/poster-student.jpg" controls preload="metadata" playsinline loop></video>
-      <div class="vctl" role="group" aria-label="학생 화면 영상 조절">
-        <button type="button" id="vPlay" class="vb main" aria-label="재생">▶ 재생</button>
-        <button type="button" id="vStart" class="vb" aria-label="처음부터">⏮ 처음</button>
-        <button type="button" id="vLoop" class="vb on" aria-pressed="true" aria-label="반복">🔁 반복 켜짐</button>
+      <div class="vbox" id="vBox">
+        <video id="stuVideo" src="video/student.mp4" poster="img/poster-student.jpg" preload="metadata" playsinline loop></video>
+        <button type="button" class="vbig" id="vBig" aria-label="재생">▶</button>
+        <div class="vbar" role="group" aria-label="학생 화면 영상 조절">
+          <input type="range" id="vSeek" min="0" max="1000" value="0" aria-label="재생 위치">
+          <div class="vrow">
+            <button type="button" id="vPlay" class="vb" aria-label="재생">▶ 재생</button>
+            <button type="button" id="vStart" class="vb" aria-label="처음부터">⏮ 처음</button>
+            <button type="button" id="vLoop" class="vb on" aria-pressed="true" aria-label="반복">🔁 반복</button>
+            <span class="vtime" id="vTime">0:00 / 0:00</span>
+            <span class="vgrow"></span>
+            <button type="button" id="vMute" class="vb icon" aria-label="소리 끄기">🔊</button>
+            <button type="button" id="vFull" class="vb" aria-label="전체 화면">⛶ 전체 화면</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -353,22 +377,64 @@ document.querySelectorAll('.bars').forEach(function(b){
 })();
 </script>
 <script>
-// 학생 화면 영상: 재생/멈춤 · 처음부터 · 반복 켜기/끄기
+// 학생 화면 영상: 영상 안쪽 조절 막대(재생/멈춤 · 처음 · 반복 · 위치 · 소리 · 전체 화면)
 (() => {
-  const v = document.getElementById('stuVideo');
-  const play = document.getElementById('vPlay'), start = document.getElementById('vStart'), loop = document.getElementById('vLoop');
+  const box = document.getElementById('vBox'), v = document.getElementById('stuVideo');
+  const $ = (id) => document.getElementById(id);
+  const play = $('vPlay'), big = $('vBig'), loop = $('vLoop'), seek = $('vSeek'), time = $('vTime'), mute = $('vMute'), full = $('vFull');
+  const fmt = (t) => (isFinite(t) ? `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}` : '0:00');
+  const toggle = () => (v.paused || v.ended ? v.play() : v.pause());
+  const isFull = () => document.fullscreenElement === box || document.webkitFullscreenElement === box || box.classList.contains('pseudo');
   const sync = () => {
     const on = !v.paused && !v.ended;
+    box.classList.toggle('playing', on);
     play.textContent = on ? '⏸ 멈춤' : '▶ 재생';
     play.setAttribute('aria-label', on ? '멈춤' : '재생');
-    loop.textContent = v.loop ? '🔁 반복 켜짐' : '🔁 반복 꺼짐';
     loop.classList.toggle('on', v.loop);
     loop.setAttribute('aria-pressed', String(v.loop));
+    loop.title = v.loop ? '반복 켜짐(누르면 꺼짐)' : '반복 꺼짐(누르면 켜짐)';
+    mute.textContent = v.muted ? '🔇' : '🔊';
+    full.textContent = isFull() ? '⤡ 작게 보기' : '⛶ 전체 화면';
   };
-  play.addEventListener('click', () => (v.paused || v.ended ? v.play() : v.pause()));
-  start.addEventListener('click', () => { v.currentTime = 0; v.play(); });
+  play.addEventListener('click', toggle);
+  big.addEventListener('click', toggle);
+  v.addEventListener('click', toggle);
+  $('vStart').addEventListener('click', () => { v.currentTime = 0; v.play(); });
   loop.addEventListener('click', () => { v.loop = !v.loop; sync(); });
-  ['play', 'pause', 'ended'].forEach((e) => v.addEventListener(e, sync));
+  mute.addEventListener('click', () => { v.muted = !v.muted; sync(); });
+  v.addEventListener('timeupdate', () => {
+    if (v.duration) seek.value = Math.round((v.currentTime / v.duration) * 1000);
+    time.textContent = `${fmt(v.currentTime)} / ${fmt(v.duration)}`;
+  });
+  v.addEventListener('loadedmetadata', () => (time.textContent = `0:00 / ${fmt(v.duration)}`));
+  seek.addEventListener('input', () => { if (v.duration) v.currentTime = (seek.value / 1000) * v.duration; });
+  // 전체 화면: 브라우저가 막으면 화면 가득 채우기로 대신함(조절 막대는 그대로 보임)
+  full.addEventListener('click', async () => {
+    if (isFull()) {
+      if (box.classList.contains('pseudo')) { box.classList.remove('pseudo'); document.body.style.overflow = ''; }
+      else await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    } else {
+      try {
+        const req = box.requestFullscreen || box.webkitRequestFullscreen;
+        if (!req) throw new Error('no');
+        await req.call(box);
+      } catch {
+        box.classList.add('pseudo');
+        document.body.style.overflow = 'hidden';
+      }
+    }
+    sync();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && box.classList.contains('pseudo')) { box.classList.remove('pseudo'); document.body.style.overflow = ''; sync(); }
+  });
+  ['fullscreenchange', 'webkitfullscreenchange'].forEach((e) => document.addEventListener(e, sync));
+  ['play', 'pause', 'ended', 'volumechange'].forEach((e) => v.addEventListener(e, sync));
+  // 재생 중 마우스를 가만히 두면 조절 막대를 잠깐 숨김
+  let idleT = 0;
+  const wake = () => { box.classList.remove('idle'); clearTimeout(idleT); idleT = setTimeout(() => box.classList.add('idle'), 2500); };
+  ['mousemove', 'touchstart', 'click'].forEach((e) => box.addEventListener(e, wake, { passive: true }));
+  box.addEventListener('mouseleave', () => !v.paused && box.classList.add('idle'));
   sync();
 })();
 </script>
