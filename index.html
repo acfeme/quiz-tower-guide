@@ -73,7 +73,7 @@ p{margin:0}
 .addr b{font-family:var(--f-display);font-weight:400;font-size:1.1rem;color:var(--blue);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:1px 10px;margin-right:4px}
 .player{position:relative}
 .player video{display:block;width:100%;border-radius:16px;background:#000;box-shadow:var(--shadow);border:6px solid var(--paper)}
-.player .tag{position:absolute;top:-12px;left:18px;background:var(--red);color:#fff;font-weight:700;font-size:.8rem;border-radius:99px;padding:3px 12px;box-shadow:0 3px 8px rgba(0,0,0,.15)}
+.player .tag{z-index:2;position:absolute;top:-12px;left:18px;background:var(--red);color:#fff;font-weight:700;font-size:.8rem;border-radius:99px;padding:3px 12px;box-shadow:0 3px 8px rgba(0,0,0,.15)}
 .cloud{position:absolute;background:#fff;border-radius:99px;opacity:.8;filter:blur(1px)}
 
 /* 숫자 */
@@ -414,13 +414,17 @@ document.querySelectorAll('.bars').forEach(function(b){
       if (box.classList.contains('pseudo')) { box.classList.remove('pseudo'); document.body.style.overflow = ''; }
       else await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
     } else {
-      try {
-        const req = box.requestFullscreen || box.webkitRequestFullscreen;
-        if (!req) throw new Error('no');
-        await req.call(box);
-      } catch {
+      const pseudo = () => {
+        if (document.fullscreenElement || document.webkitFullscreenElement) return;
         box.classList.add('pseudo');
         document.body.style.overflow = 'hidden';
+        sync();
+      };
+      const req = box.requestFullscreen || box.webkitRequestFullscreen;
+      if (!req) pseudo();
+      else {
+        try { const r = req.call(box); if (r && r.catch) r.catch(pseudo); } catch { pseudo(); }
+        setTimeout(pseudo, 500); // 반응이 없으면(앱 안 브라우저 등) 화면 가득 채우기로
       }
     }
     sync();
